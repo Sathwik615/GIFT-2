@@ -1,0 +1,115 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Love Heart</title>
+<style>
+  html, body { margin: 0; height: 100%; background: #0b0606; overflow: hidden; }
+  canvas {
+    display: block; width: 100%; height: 100%;
+    animation: beat 1.6s ease-in-out infinite;
+    transform-origin: 50% 55%;
+  }
+  @keyframes beat {
+    0%, 100% { transform: scale(1); }
+    15%      { transform: scale(1.04); }
+    30%      { transform: scale(1); }
+    45%      { transform: scale(1.03); }
+  }
+</style>
+</head>
+<body>
+<canvas id="c"></canvas>
+
+<script>
+const phrases = [
+  "I love you", "Te amo", "Ich liebe dich", "Je t'aime", "Ti amo",
+  "Eu te amo", "Seni seviyorum", "Kocham cię", "Jag älskar dig",
+  "Ik hou van jou", "Anh yêu em", "Aku cinta kamu", "Σ' αγαπώ",
+  "Я тебя люблю", "Я тебе кохаю", "愛してる", "我爱你", "사랑해",
+  "ฉันรักเธอ", "मैं तुमसे प्यार करता हूँ"
+];
+
+const canvas = document.getElementById("c");
+const ctx = canvas.getContext("2d");
+let items = [], start = 0;
+
+function inHeart(x, y) {            // classic heart curve
+  const a = x * x + y * y - 1;
+  return a * a * a - x * x * y * y * y <= 0;
+}
+
+function build() {
+  const dpr = window.devicePixelRatio || 1;
+  const W = innerWidth, H = innerHeight;
+  canvas.width = W * dpr; canvas.height = H * dpr;
+  ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+
+  const s = Math.min(W, H) / 2.5;          // heart scale
+  const cx = W / 2, cy = H / 2 + 0.15 * s; // heart centre
+  const rowH = s / 7.5;
+  const base = Math.max(11, s / 15);
+  items = [];
+
+  for (let py = cy - 1.3 * s; py < cy + 1.05 * s; py += rowH) {
+    const Y = (cy - py) / s;
+    // find horizontal segments inside the heart on this row
+    const segs = []; let from = null;
+    for (let px = 0; px <= W; px += 2) {
+      const inside = inHeart((px - cx) / s, Y);
+      if (inside && from === null) from = px;
+      if (!inside && from !== null) { segs.push([from, px]); from = null; }
+    }
+    for (const [a, b] of segs) {
+      let x = a + 4;
+      let guard = 0;
+      while (x < b - 10 && guard++ < 50) {
+        const size = base * (0.7 + Math.random() * 0.9);
+        ctx.font = `bold ${size}px Arial, "Noto Sans", sans-serif`;
+        const text = phrases[Math.floor(Math.random() * phrases.length)];
+        const w = ctx.measureText(text).width;
+        if (x + w > b - 4) {
+          if (guard > 6) break;      // row is full enough
+          continue;                  // try a shorter phrase
+        }
+        items.push({
+          text, x, y: py, size,
+          rot: (Math.random() - 0.5) * 0.12,
+          color: `hsl(${4 + Math.random() * 10}, ${80 + Math.random() * 18}%, ${52 + Math.random() * 14}%)`
+        });
+        x += w + size * 0.6;
+      }
+    }
+  }
+  items.sort((p, q) => p.y - q.y);   // reveal top to bottom
+  start = performance.now();
+}
+
+function draw(now) {
+  ctx.clearRect(0, 0, innerWidth, innerHeight);
+  const shown = Math.floor((now - start) / 6);   // words revealed so far
+  for (let i = 0; i < items.length && i < shown; i++) {
+    const it = items[i];
+    const age = Math.min(1, (now - start - i * 6) / 400);
+    ctx.save();
+    ctx.globalAlpha = age;
+    ctx.translate(it.x, it.y);
+    ctx.rotate(it.rot);
+    ctx.font = `bold ${it.size}px Arial, "Noto Sans", sans-serif`;
+    ctx.fillStyle = it.color;
+    ctx.shadowColor = "rgba(255,70,50,.6)";
+    ctx.shadowBlur = 6;
+    ctx.fillText(it.text, 0, 0);
+    ctx.restore();
+  }
+  requestAnimationFrame(draw);
+}
+
+addEventListener("resize", build);
+canvas.addEventListener("click", build);   // click to regenerate
+build();
+requestAnimationFrame(draw);
+</script>
+</body>
+</html>
